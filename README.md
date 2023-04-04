@@ -1,23 +1,175 @@
-# Twitter-Sentiment-Analysis-using-NLP
-#In this we are going to extract text from image word by word
-import cv2
-import pytesseract
+import re
+import pandas as pd 
+import numpy as np 
+import matplotlib.pyplot as plt 
+import seaborn as sns
+import string
+import nltk
+import warnings 
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
-img = cv2.imread('images\im4.png')
-img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+%matplotlib inline
 
-#Detecting Characters
-h_img =  img.shape[0]
-w_img = img.shape[1]
-boxes = (pytesseract.image_to_boxes(img))
-for character in boxes.splitlines():
-  character = character.split(' ')
-  x,y,w,h = int(character[1]), int(character[2]), int(character[3]), int(character[4])
-  cv2.rectangle(img, (x,h_img-y), (w, h_img-h), (0,255,0), 1)
-  cv2.putText(img, character[0], (x, h_img-y+20), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255, 2))
+#Importing modules and dataset
+#Reading testing data.
 
-#printing Result
-cv2.imshow('image', img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+train = pd.read_csv('https://raw.githubusercontent.com/dD2405/Twitter_Sentiment_Analysis/master/train.csv')
+
+train_original=train.copy()
+train_original.head(10) #Displayes first ten lines of dataset.
+id	label	tweet
+
+#Reading validation data.
+
+test = pd.read_csv('https://raw.githubusercontent.com/dD2405/Twitter_Sentiment_Analysis/master/test.csv')
+
+test_original=test.copy()
+test_original.head(5)
+
+#Data preprocessing
+combine = train.append(test,ignore_index=True,sort=True) #combining testing and training data
+combine.head()
+
+#Removing '@' from data.
+def remove_pattern(text,pattern):
+    
+#re.findall() finds the pattern i.e @user and puts it in a list for further task
+    r = re.findall(pattern,text)
+    
+#re.sub() removes @user from the sentences in the dataset
+    for i in r:
+        text = re.sub(i,"",text)
+    
+  return text
+combine['Updated_Tweets'] = np.vectorize(remove_pattern)(combine['tweet'], "@[\w]*")
+
+combine.head()
+
+#Removing special characters, punctuation etc.
+combine['Updated_Tweets'] = combine['Updated_Tweets'].str.replace("[^a-zA-Z#]", " ") #regex to identify special characters and remove
+
+combine.head(10)
+
+#Note: Here characters with '#' have not been omitted because those have to be taken into account separately.
+
+#Removing redundant and meaningless words. EG. 'HMM','OK','Yeah'.
+
+combine['Updated_Tweets'] = combine['Updated_Tweets'].apply(lambda x: ' '.join([w for w in x.split() if len(w)>3]))
+
+combine.head(10)
+
+tokenized_tweet = combine['Updated_Tweets'].apply(lambda x: x.split())
+
+tokenized_tweet.head()
+
+#STEMMING
+#Extracting main word from different forms of same word. i.e., play, player, played, playing -> play.
+from nltk import PorterStemmer #NLTK module that stems the word from the list. 
+
+ps = PorterStemmer()
+
+tokenized_tweet = tokenized_tweet.apply(lambda x: [ps.stem(i) for i in x])
+for i in range(len(tokenized_tweet)):
+    tokenized_tweet[i] = ' '.join(tokenized_tweet[i])
+
+combine['Updated_Tweets'] = tokenized_tweet
+combine.head()
+
+#importing the modules.
+from wordcloud import WordCloud,ImageColorGenerator
+from PIL import Image
+import urllib
+import requests
+
+all_words_positive = ' '.join(text for text in combine['Updated_Tweets'][combine['label']==0])
+
+# combining the image with the dataset
+Mask = np.array(Image.open(requests.get('http://clipart-library.com/image_gallery2/Twitter-PNG-Image.png', stream=True).raw))
+
+# We use the ImageColorGenerator library from Wordcloud 
+# Here we take the color of the image and impose it over our wordcloud
+image_colors = ImageColorGenerator(Mask)
+
+# Now we use the WordCloud function from the wordcloud library 
+wc = WordCloud(background_color='black', height=1500, width=4000,mask=Mask).generate(all_words_positive)
+
+# Size of the image generated 
+plt.figure(figsize=(10,20))
+
+# Here we recolor the words from the dataset to the image's color
+# recolor just recolors the default colors to the image's blue color
+# interpolation is used to smooth the image generated 
+plt.imshow(wc.recolor(color_func=image_colors),interpolation="hamming")
+
+plt.axis('off')
+plt.show()
+
+all_words_negative = ' '.join(text for text in combine['Updated_Tweets'][combine['label']==1])
+Mask = np.array(Image.open(requests.get('http://clipart-library.com/image_gallery2/Twitter-PNG-Image.png', stream=True).raw))
+
+# We use the ImageColorGenerator library from Wordcloud 
+# Here we take the color of the image and impose it over our wordcloud
+image_colors = ImageColorGenerator(Mask)
+
+# Now we use the WordCloud function from the wordcloud library 
+wc = WordCloud(background_color='black', height=1500, width=4000,mask=Mask).generate(all_words_negative)
+
+plt.figure(figsize=(10,20))
+
+# Here we recolor the words from the dataset to the image's color
+# recolor just recolors the default colors to the image's blue color
+# interpolation is used to smooth the image generated 
+plt.imshow(wc.recolor(color_func=image_colors),interpolation="gaussian")
+
+plt.axis('off')
+plt.show()
+
+#Extracting hashtags
+def Hashtags_Extract(x):
+    hashtags=[]
+    
+  #Loop over the words in the tweet
+    for i in x:
+        ht = re.findall(r'#(\w+)',i)
+        hashtags.append(ht)
+    
+   return hashtags
+ht_positive = Hashtags_Extract(combine['Updated_Tweets'][combine['label']==0])
+ht_positive_unnest = sum(ht_positive,[])
+
+ht_negative = Hashtags_Extract(combine['Updated_Tweets'][combine['label']==1])
+ht_negative_unnest = sum(ht_negative,[])
+ht_negative_unnest
+
+
+word_freq_positive = nltk.FreqDist(ht_positive_unnest)
+
+df_positive = pd.DataFrame({'Hashtags':list(word_freq_positive.keys()),'Count':list(word_freq_positive.values())})
+
+df_positive.head(10)
+
+df_positive_plot = df_positive.nlargest(20,columns='Count')
+
+sns.barplot(data=df_positive_plot,y='Hashtags',x='Count')
+sns.despine()
+
+
+word_freq_negative = nltk.FreqDist(ht_negative_unnest)
+df_negative = pd.DataFrame({'Hashtags':list(word_freq_negative.keys()),'Count':list(word_freq_negative.values())})
+df_negative.head(10)
+
+df_negative_plot = df_negative.nlargest(20,columns='Count') 
+sns.barplot(data=df_negative_plot,y='Hashtags',x='Count')
+sns.despine()
+
+
+from sklearn.feature_extraction.text import CountVectorizer
+
+bow_vectorizer = CountVectorizer(max_df=0.90, min_df=2, max_features=1000, stop_words='english')
+
+# bag-of-words feature matrix
+bow = bow_vectorizer.fit_transform(combine['Updated_Tweets'])
+
+df_bow = pd.DataFrame(bow.todense())
+
+df_bow.head(10)
