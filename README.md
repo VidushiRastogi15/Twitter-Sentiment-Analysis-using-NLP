@@ -1,175 +1,76 @@
-import re
-import pandas as pd 
-import numpy as np 
-import matplotlib.pyplot as plt 
-import seaborn as sns
-import string
-import nltk
-import warnings 
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+# TWITTER SENTIMENT ANALYSIS USING NATURAL LANGUAGE PROCESSING
+## OBJECTIVE
+<p>Analyse twitter data or tweets made by users during a certain period of time using NLP.</p>
+<p>Classify the tweets made either in positive category or negative category.</p>
 
-%matplotlib inline
+## Importing Modules And Dataset
+<p>The csv module enables us to read each of the row in the file using a comma as a delimiter. We first open the file in read only mode and then assign the delimiter. Finally use a for loop to read each row from the csv file.</p>
 
-#Importing modules and dataset
-#Reading testing data.
+<li><b>Reading Testing Data</b></li>
 
-train = pd.read_csv('https://raw.githubusercontent.com/dD2405/Twitter_Sentiment_Analysis/master/train.csv')
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/6b7bc585-5298-41ef-80a0-40ff61e69f02)
 
-train_original=train.copy()
-train_original.head(10) #Displayes first ten lines of dataset.
-id	label	tweet
+<li><b>Reading Validation Data</b></li>
 
-#Reading validation data.
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/163cc1ae-c19e-41d7-aa46-01414847bca4)
 
-test = pd.read_csv('https://raw.githubusercontent.com/dD2405/Twitter_Sentiment_Analysis/master/test.csv')
+## VISULAIZING THE DATA
+<p>Data visualization is the discipline of trying to understand data by placing it in a visual context so that patterns, trends, and correlations that might not otherwise be detected can be exposed.</p>
 
-test_original=test.copy()
-test_original.head(5)
+<li><b>All Words Positive</b></li>
 
-#Data preprocessing
-combine = train.append(test,ignore_index=True,sort=True) #combining testing and training data
-combine.head()
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/0de4e10f-a4bc-4fb8-ad28-cd3e216a974e)
 
-#Removing '@' from data.
-def remove_pattern(text,pattern):
-    
-#re.findall() finds the pattern i.e @user and puts it in a list for further task
-    r = re.findall(pattern,text)
-    
-#re.sub() removes @user from the sentences in the dataset
-    for i in r:
-        text = re.sub(i,"",text)
-    
-  return text
-combine['Updated_Tweets'] = np.vectorize(remove_pattern)(combine['tweet'], "@[\w]*")
+<li><b>All Words Negative</b></li>
 
-combine.head()
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/715d4fd5-4962-4c7d-bb64-aa30a0cc6fd3)
 
-#Removing special characters, punctuation etc.
-combine['Updated_Tweets'] = combine['Updated_Tweets'].str.replace("[^a-zA-Z#]", " ") #regex to identify special characters and remove
+## Plotting Bar Plots To Visualize Data
 
-combine.head(10)
+<li><b>Positive words Plot</b></li>
 
-#Note: Here characters with '#' have not been omitted because those have to be taken into account separately.
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/8450990a-9fbe-4f4e-9be5-514992b1d6c6)
 
-#Removing redundant and meaningless words. EG. 'HMM','OK','Yeah'.
+<li><b>Negative words Plot</b></li>
 
-combine['Updated_Tweets'] = combine['Updated_Tweets'].apply(lambda x: ' '.join([w for w in x.split() if len(w)>3]))
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/a13be53c-88bc-4c69-92db-588d7caefe1a) 
 
-combine.head(10)
+## Applying ML (Logistic Regression).
 
-tokenized_tweet = combine['Updated_Tweets'].apply(lambda x: x.split())
+<p>We will use popular Machine Learning prediction technique, Logistic Regression here as logistic regression is referred as the go to algorithm for binary classification.</p>
 
-tokenized_tweet.head()
+<li><b>Fitting and predicting by TF-IDF:</b></li>
 
-#STEMMING
-#Extracting main word from different forms of same word. i.e., play, player, played, playing -> play.
-from nltk import PorterStemmer #NLTK module that stems the word from the list. 
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/e66ac9be-11c2-4b78-b7e0-67fb2b9ccea2)
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/946784ae-8efe-431d-b2f7-ea7c9c420618)
 
-ps = PorterStemmer()
+<li><b>Fitting and predicting by Bag-Of-Words:</b></li>
 
-tokenized_tweet = tokenized_tweet.apply(lambda x: [ps.stem(i) for i in x])
-for i in range(len(tokenized_tweet)):
-    tokenized_tweet[i] = ' '.join(tokenized_tweet[i])
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/04895340-bf66-4f3d-8ac1-8de1e88d1289)
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/3f1895d9-9d60-4060-9ea6-da217e45620d)
 
-combine['Updated_Tweets'] = tokenized_tweet
-combine.head()
+## Comparing F1 Score (Evaluation Metric)
+<p>Here it is clearly visible that TF-IDF (Term Frequency – Inverse Document Frequency is the better technique for feature selection than Bag of Words.</p>
 
-#importing the modules.
-from wordcloud import WordCloud,ImageColorGenerator
-from PIL import Image
-import urllib
-import requests
-
-all_words_positive = ' '.join(text for text in combine['Updated_Tweets'][combine['label']==0])
-
-# combining the image with the dataset
-Mask = np.array(Image.open(requests.get('http://clipart-library.com/image_gallery2/Twitter-PNG-Image.png', stream=True).raw))
-
-# We use the ImageColorGenerator library from Wordcloud 
-# Here we take the color of the image and impose it over our wordcloud
-image_colors = ImageColorGenerator(Mask)
-
-# Now we use the WordCloud function from the wordcloud library 
-wc = WordCloud(background_color='black', height=1500, width=4000,mask=Mask).generate(all_words_positive)
-
-# Size of the image generated 
-plt.figure(figsize=(10,20))
-
-# Here we recolor the words from the dataset to the image's color
-# recolor just recolors the default colors to the image's blue color
-# interpolation is used to smooth the image generated 
-plt.imshow(wc.recolor(color_func=image_colors),interpolation="hamming")
-
-plt.axis('off')
-plt.show()
-
-all_words_negative = ' '.join(text for text in combine['Updated_Tweets'][combine['label']==1])
-Mask = np.array(Image.open(requests.get('http://clipart-library.com/image_gallery2/Twitter-PNG-Image.png', stream=True).raw))
-
-# We use the ImageColorGenerator library from Wordcloud 
-# Here we take the color of the image and impose it over our wordcloud
-image_colors = ImageColorGenerator(Mask)
-
-# Now we use the WordCloud function from the wordcloud library 
-wc = WordCloud(background_color='black', height=1500, width=4000,mask=Mask).generate(all_words_negative)
-
-plt.figure(figsize=(10,20))
-
-# Here we recolor the words from the dataset to the image's color
-# recolor just recolors the default colors to the image's blue color
-# interpolation is used to smooth the image generated 
-plt.imshow(wc.recolor(color_func=image_colors),interpolation="gaussian")
-
-plt.axis('off')
-plt.show()
-
-#Extracting hashtags
-def Hashtags_Extract(x):
-    hashtags=[]
-    
-  #Loop over the words in the tweet
-    for i in x:
-        ht = re.findall(r'#(\w+)',i)
-        hashtags.append(ht)
-    
-   return hashtags
-ht_positive = Hashtags_Extract(combine['Updated_Tweets'][combine['label']==0])
-ht_positive_unnest = sum(ht_positive,[])
-
-ht_negative = Hashtags_Extract(combine['Updated_Tweets'][combine['label']==1])
-ht_negative_unnest = sum(ht_negative,[])
-ht_negative_unnest
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/96ca4b39-1eed-4553-a609-4c55333e0a1a)
 
 
-word_freq_positive = nltk.FreqDist(ht_positive_unnest)
+## Predicting types of tweet.
+<p>Here, we have predicted the type of value a tweet possesses using logistic regression. The label column identifies the type of tweet made as either “Positive” or “Negative”.</p>
 
-df_positive = pd.DataFrame({'Hashtags':list(word_freq_positive.keys()),'Count':list(word_freq_positive.values())})
-
-df_positive.head(10)
-
-df_positive_plot = df_positive.nlargest(20,columns='Count')
-
-sns.barplot(data=df_positive_plot,y='Hashtags',x='Count')
-sns.despine()
+![image](https://github.com/VidushiRastogi15/Twitter-Sentiment-Analysis-using-NLP/assets/118375146/58a4ed21-a718-47db-979c-98a22f8da605)
 
 
-word_freq_negative = nltk.FreqDist(ht_negative_unnest)
-df_negative = pd.DataFrame({'Hashtags':list(word_freq_negative.keys()),'Count':list(word_freq_negative.values())})
-df_negative.head(10)
-
-df_negative_plot = df_negative.nlargest(20,columns='Count') 
-sns.barplot(data=df_negative_plot,y='Hashtags',x='Count')
-sns.despine()
 
 
-from sklearn.feature_extraction.text import CountVectorizer
 
-bow_vectorizer = CountVectorizer(max_df=0.90, min_df=2, max_features=1000, stop_words='english')
 
-# bag-of-words feature matrix
-bow = bow_vectorizer.fit_transform(combine['Updated_Tweets'])
 
-df_bow = pd.DataFrame(bow.todense())
 
-df_bow.head(10)
+
+
+
+
+
+
+
